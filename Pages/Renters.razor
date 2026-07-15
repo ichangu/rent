@@ -1,0 +1,172 @@
+@page "/renters"
+@using PropertyManagerApp.Models
+@using PropertyManagerApp.Services
+@inject DatabaseService DbService
+
+<PageTitle>Renters Management</PageTitle>
+
+<div class="container mt-4">
+    <h2>Renters Directory</h2>
+    <p class="text-muted">Direct live-link to your Google Sheets database.</p>
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Loading records from Google Sheets...</div>
+    }
+    else
+    {
+        <!-- Corrected Input Form -->
+        <div class="card my-4 p-3 bg-light">
+            <h5>Add New Renter</h5>
+            <div class="row g-3">
+                @* <div class="col-md-2">
+                    <input type="text" class="form-control" placeholder="Renter ID" @bind="newId" />
+                </div> *@
+                <div class="col-md-3">
+                    <input type="text" class="form-control" placeholder="First Name" @bind="newFirstName" />
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control" placeholder="Last Name" @bind="newLastName" />
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control" placeholder="Phone" @bind="newPhone" />
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control" placeholder="Email" @bind="newEmail" />
+                </div>
+                <div class="col-md-10">
+                    <input type="text" class="form-control" placeholder="Emergency Contact" @bind="newEmergency" />
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" @onclick="AddRenter" disabled="@isSaving">
+                        @if (isSaving) { <span>Saving...</span> } else { <span>Add Row</span> }
+                    </button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(statusMessage))
+            {
+                <div class="small mt-2 text-danger">@statusMessage</div>
+            }
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mt-3">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Renter ID</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Emergency Contact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (payload?.Renters == null || !payload.Renters.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No renter records found.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var renter in payload.Renters)
+                        {
+                            <tr>
+                                <td>@renter.RenterId</td>
+                                <td>@renter.FirstName</td>
+                                <td>@renter.LastName</td>
+                                <td>@renter.Phone</td>
+                                <td>@renter.Email</td>
+                                <td>@renter.EmergencyContact</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private SheetsDatabasePayload? payload;
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string statusMessage = "";
+    
+    private string newId = "";
+    private string newFirstName = "";
+    private string newLastName = "";
+    private string newPhone = "";
+    private string newEmail = "";
+    private string newEmergency = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            payload = await DbService.FetchEverythingAsync();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = "Could not load data.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task AddRenter()
+{
+    isSaving = true;
+    statusMessage = "";
+
+    var newRecord = new RenterRecord 
+    { 
+        FirstName = newFirstName, 
+        LastName = newLastName,
+        Phone = newPhone,
+        Email = newEmail,
+        EmergencyContact = newEmergency
+    };
+
+    try
+    {
+        bool isSuccess = await DbService.SaveRecordAsync("create", "renters", newRecord);
+
+        if (isSuccess)
+        {
+            // 1. Reset form fields
+            newFirstName = ""; newLastName = "";
+            newPhone = ""; newEmail = ""; newEmergency = "";
+
+            // 2. Fetch the fresh list from Google Sheets
+            // This will automatically include the new Renter ID generated by the script
+            await LoadData(); 
+            
+            statusMessage = "Record saved successfully!";
+        }
+        else
+        {
+            statusMessage = "Failed to save to database.";
+        }
+    }
+    catch (Exception ex)
+    {
+        statusMessage = $"Error: {ex.Message}";
+    }
+    finally
+    {
+        isSaving = false;
+        StateHasChanged(); // Ensures the UI refreshes after loading
+    }
+}
+}
