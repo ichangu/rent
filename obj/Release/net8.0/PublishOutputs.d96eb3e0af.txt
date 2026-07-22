@@ -1,0 +1,2 @@
+/Users/araut/Documents/baba/PropertyManagerApp/bin/Release/net8.0/publish/emcc-props.json
+/Users/araut/Documents/baba/PropertyManagerApp/bin/Release/net8.0/publish/web.config
